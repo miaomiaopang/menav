@@ -42,15 +42,15 @@ categories:
         description: 社区讨论平台
       - name: Flare
         url: https://flare.mmiaom.cf:4433/
-        icon: fab fa-flare
+        icon: fas fa-fire
         description: self-hosted
       - name: MoonTV
         url: http://129.154.236.75:3681/
-        icon: fab fa-moon
+        icon: far fa-moon
         description: self-hosted
       - name: searx
         url: https://searx.keaibei.tk:4433/
-        icon: fab fa-searx
+        icon: fas fa-search
         description: self-hosted
   - name: 学习资源
     icon: fas fa-graduation-cap
