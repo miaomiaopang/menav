@@ -157,6 +157,7 @@ html {
     color: var(--text-color);
 }
 
+
 body {
     font-family: var(--font-body);
     font-weight: var(--font-weight-body);
