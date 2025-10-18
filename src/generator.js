@@ -283,12 +283,32 @@ function ensureConfigDefaults(config) {
   result.site = result.site || {};
   result.navigation = result.navigation || [];
   result.fonts = result.fonts || {};
+
+  // 确保字体配置完整
+  result.fonts.title = result.fonts.title || {};
+  result.fonts.title.family = result.fonts.title.family || 'Arial';
+  result.fonts.title.weight = result.fonts.title.weight || 700;
+  result.fonts.title.source = result.fonts.title.source || 'system';
+
+  result.fonts.subtitle = result.fonts.subtitle || {};
+  result.fonts.subtitle.family = result.fonts.subtitle.family || 'Arial';
+  result.fonts.subtitle.weight = result.fonts.subtitle.weight || 500;
+  result.fonts.subtitle.source = result.fonts.subtitle.source || 'system';
+
+  result.fonts.body = result.fonts.body || {};
+  result.fonts.body.family = result.fonts.body.family || 'Arial';
+  result.fonts.body.weight = result.fonts.body.weight || 400;
+  result.fonts.body.source = result.fonts.body.source || 'system';
+
   result.profile = result.profile || {};
   result.social = result.social || [];
   result.categories = result.categories || [];
 
   // 站点基本信息默认值
   result.site.title = result.site.title || 'MeNav导航';
+  result.site.description = result.site.description || '个人网络导航站';
+  result.site.author = result.site.author || 'MeNav User';
+  result.site.logo_text = result.site.logo_text || '导航站';
   result.site.favicon = result.site.favicon || 'favicon.ico';
   result.site.logo = result.site.logo || null;
   result.site.footer = result.site.footer || '';

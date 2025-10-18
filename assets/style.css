@@ -28,7 +28,8 @@
     --sidebar-collapsed-width: 60px;
 }
 
-/* 浅色主题 */
+/* 浅色主题：预加载阶段同样应用变量，避免读取默认暗色值 */
+html.theme-preload,
 body.light-theme {
     --bg-color: #e0e0d8;
     --sidebar-bg: #f0f0eb;
@@ -273,7 +274,7 @@ body.loaded .layout {
     scrollbar-width: thin; /* Firefox */
     scrollbar-color: var(--scrollbar-color) transparent; /* Firefox */
     overflow-y: hidden; /* 防止整个侧边栏滚动 */
-    transition: width 0.3s ease, background-color 0.3s ease, transform 0.3s ease;
+    transition: background-color 0.3s ease;
 }
 
 /* 侧边栏折叠状态 */
@@ -332,7 +333,7 @@ body.loaded .layout {
     margin-bottom: 0;
     padding-left: 0.5rem;
     letter-spacing: 0.5px;
-    transition: opacity 0.3s ease, transform 0.3s ease, width 0.3s ease;
+    transition: opacity 0.3s ease, transform 0.3s ease;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -589,7 +590,6 @@ body.loaded .layout {
     align-items: center;
     /* 隐藏滚动条但保持滚动功能 */
     scrollbar-width: none; /* Firefox */
-    transition: background-color 0.3s ease, margin-left 0.3s ease, max-width 0.3s ease;
 }
 
 .content::-webkit-scrollbar {
@@ -600,6 +600,15 @@ body.loaded .layout {
 body .content.expanded {
     margin-left: var(--sidebar-collapsed-width);
     max-width: calc(100vw - var(--sidebar-collapsed-width));
+}
+
+/* 仅在交互时启用布局相关过渡，避免首帧闪烁 */
+.with-anim .sidebar {
+    transition: width 0.3s ease, background-color 0.3s ease;
+}
+
+.with-anim .content {
+    transition: background-color 0.3s ease, margin-left 0.3s ease, max-width 0.3s ease;
 }
 
 /* 搜索框容器 - 固定在顶部 */
@@ -762,7 +771,6 @@ body .content.expanded {
 
 .page.active {
     display: flex;
-    animation: fadeIn 0.3s ease-out forwards;
 }
 
 /* 欢迎区域 */
@@ -843,8 +851,7 @@ body .content.expanded {
     max-width: 1300px;
     position: relative;
     z-index: 1;
-    opacity: 0;
-    animation: fadeIn 0.5s ease-out forwards;
+    opacity: 1; /* 移除进入时的浮动/淡入动画，避免切页时跳动 */
     box-shadow: 0 4px 20px var(--shadow-color);
     border: 1px solid var(--border-color);
     transition: background 0.3s ease, box-shadow 0.3s ease;
@@ -1189,7 +1196,7 @@ body .content.expanded {
     .sidebar {
         transform: translateX(-100%);
         box-shadow: none;
-        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s ease;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .sidebar .logo {

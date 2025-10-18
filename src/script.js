@@ -411,6 +411,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 侧边栏折叠功能
     function toggleSidebarCollapse() {
+        // 仅在交互时启用布局相关动画，避免首屏闪烁
+        document.documentElement.classList.add('with-anim');
+
         isSidebarCollapsed = !isSidebarCollapsed;
 
         // 使用 requestAnimationFrame 确保平滑过渡
