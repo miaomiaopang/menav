@@ -7,8 +7,8 @@
     <title data-editable="site-title">{{site.title}}</title>
     <meta name="description" content="{{site.description}}" data-editable="site-description">
     <meta name="author" content="{{site.author}}" data-editable="site-author">
-    <link rel="icon" href="./favicon.ico" type="image/x-icon">
-    <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
+    <link rel="icon" href="./{{site.favicon}}" type="image/x-icon">
+    <link rel="shortcut icon" href="./{{site.favicon}}" type="image/x-icon">
     {{{googleFontsLink}}}
     <style>
 {{{fontVariables}}}
@@ -104,8 +104,9 @@
             <!-- 搜索框容器 -->
             <div class="search-container">
                 <div class="search-box">
-                    <input type="text" id="search" placeholder="搜索... (点击右侧图标切换搜索引擎)">
+                    <input type="text" id="search" placeholder="搜索...">
                     <i class="fas fa-search search-icon" title="本地搜索"></i>
+                    <i class="fas fa-chevron-down search-engine-toggle" title="选择搜索引擎" role="button" aria-label="选择搜索引擎" aria-expanded="false" tabindex="0"></i>
                     <div class="search-engine-dropdown">
                         <div class="search-engine-option" data-engine="local" title="本地搜索">
                             <i class="fas fa-search"></i>
@@ -130,6 +131,11 @@
             </div>
             {{/each}}
         </main>
+
+        <!-- 分类切换按钮 -->
+        <button class="category-toggle" id="category-toggle" aria-label="展开/收起分类">
+            <i class="fas fa-angle-double-down"></i>
+        </button>
 
         <!-- 主题切换按钮 -->
         <button class="theme-toggle" aria-label="切换主题">
