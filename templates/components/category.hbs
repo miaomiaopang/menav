@@ -6,13 +6,25 @@
          data-level="{{#if level}}{{level}}{{else}}1{{/if}}"
          data-container="categories">
     
-    <div class="category-header" data-toggle="category">
+    <div class="category-header"{{#if level}}{{#ifCond level '===' 2}} data-toggle="category"{{/ifCond}}{{else}}{{#unless subcategories}}{{#unless groups}} data-toggle="category"{{/unless}}{{/unless}}{{/if}}>
         <h{{#if level}}{{add level 1}}{{else}}2{{/if}} data-editable="category-name">
             <i class="{{icon}}"></i>
             {{name}}
-            <span class="toggle-icon">
-                <i class="fas fa-chevron-down"></i>
-            </span>
+            {{#if level}}
+                {{#ifCond level '===' 2}}
+                    <span class="toggle-icon">
+                        <i class="fas fa-chevron-down"></i>
+                    </span>
+                {{/ifCond}}
+            {{else}}
+                {{#unless subcategories}}
+                {{#unless groups}}
+                    <span class="toggle-icon">
+                        <i class="fas fa-chevron-down"></i>
+                    </span>
+                {{/unless}}
+                {{/unless}}
+            {{/if}}
         </h{{#if level}}{{add level 1}}{{else}}2{{/if}}>
     </div>
     
@@ -20,7 +32,11 @@
         {{#if subcategories}}
             <div class="subcategories-container" data-container="subcategories">
                 {{#each subcategories}}
-                    {{> category level=2}}
+                    {{#if ../level}}
+                        {{> category level=(add ../level 1)}}
+                    {{else}}
+                        {{> category level=2}}
+                    {{/if}}
                 {{/each}}
             </div>
         {{/if}}

@@ -350,7 +350,6 @@ function ensureConfigDefaults(config) {
   result.profile = result.profile || {};
   result.profile.title = result.profile.title || '欢迎使用';
   result.profile.subtitle = result.profile.subtitle || 'MeNav个人导航系统';
-  result.profile.description = result.profile.description || '简单易用的个人导航站点';
 
   // 处理站点默认值的辅助函数
   function processSiteDefaults(site) {
@@ -519,6 +518,19 @@ function loadConfig() {
 
   // 根据优先级顺序选择最高优先级的配置
   if (hasUserModularConfig) {
+    // 配置采用“完全替换”策略：一旦存在 config/user/，将不会回退到 config/_default/
+    if (!fs.existsSync('config/user/site.yml')) {
+      console.error('[ERROR] 检测到 config/user/ 目录，但缺少 config/user/site.yml。');
+      console.error('[ERROR] 由于配置采用“完全替换”策略，系统不会从 config/_default/ 补齐缺失配置。');
+      console.error('[ERROR] 解决方法：先完整复制 config/_default/ 到 config/user/，再按需修改。');
+      process.exit(1);
+    }
+
+    if (!fs.existsSync('config/user/pages')) {
+      console.warn('[WARN] 检测到 config/user/ 目录，但缺少 config/user/pages/。部分页面内容可能为空。');
+      console.warn('[WARN] 建议：复制 config/_default/pages/ 到 config/user/pages/，再按需修改。');
+    }
+
     // 1. 最高优先级: config/user/ 目录
     config = loadModularConfig('config/user');
   } else if (hasDefaultModularConfig) {
@@ -645,13 +657,10 @@ function generateSocialLinks(social) {
 
     // 回退到原始生成方法
     return social.map(link => `
-                <a href="${escapeHtml(link.url)}" class="nav-item" target="_blank">
-                    <div class="icon-container">
-                        <i class="${escapeHtml(link.icon || 'fas fa-link')}"></i>
-                    </div>
-                    <span class="nav-text">${escapeHtml(link.name || '社交链接')}</span>
-                    <i class="fas fa-external-link-alt external-icon"></i>
-                </a>`).join('\n');
+                    <a href="${escapeHtml(link.url)}" class="social-icon" target="_blank" rel="noopener" title="${escapeHtml(link.name || '社交链接')}" aria-label="${escapeHtml(link.name || '社交链接')}" data-type="social-link" data-name="${escapeHtml(link.name || '社交链接')}" data-url="${escapeHtml(link.url)}" data-icon="${escapeHtml(link.icon || 'fas fa-link')}">
+                        <i class="${escapeHtml(link.icon || 'fas fa-link')}" aria-hidden="true"></i>
+                        <span class="nav-text visually-hidden" data-editable="social-link-name">${escapeHtml(link.name || '社交链接')}</span>
+                    </a>`).join('\n');
 }
 
 // 生成页面内容（包括首页和其他页面）
@@ -674,7 +683,6 @@ function generatePageContent(pageId, data) {
                 <div class="welcome-section">
                     <h2>${escapeHtml(profile.title || '欢迎使用')}</h2>
                     <h3>${escapeHtml(profile.subtitle || '个人导航站')}</h3>
-                    <p class="subtitle">${escapeHtml(profile.description || '快速访问您的常用网站')}</p>
                 </div>
 ${generateCategories(data.categories)}`;
     } else {

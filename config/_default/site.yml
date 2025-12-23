@@ -34,7 +34,6 @@ fonts:
 profile:
   title: Hello,
   subtitle: Welcome to My Navigation
-  description: MeNav
 
 # 社交媒体链接：显示在侧边栏底部；可按需增删
 social:

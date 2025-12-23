@@ -6,12 +6,117 @@ const yaml = require('js-yaml');
 const BOOKMARKS_DIR = 'bookmarks';
 // 模块化配置目录
 const CONFIG_USER_DIR = 'config/user';
+// 模块化默认配置目录
+const CONFIG_DEFAULT_DIR = 'config/_default';
 // 模块化页面配置目录
 const CONFIG_USER_PAGES_DIR = path.join(CONFIG_USER_DIR, 'pages');
 // 模块化输出配置文件路径
 const MODULAR_OUTPUT_FILE = path.join(CONFIG_USER_PAGES_DIR, 'bookmarks.yml');
 // 模块化默认书签配置文件路径
 const MODULAR_DEFAULT_BOOKMARKS_FILE = 'config/_default/pages/bookmarks.yml';
+
+const USER_SITE_YML = path.join(CONFIG_USER_DIR, 'site.yml');
+const DEFAULT_SITE_YML = path.join(CONFIG_DEFAULT_DIR, 'site.yml');
+const LEGACY_USER_NAV_YML = path.join(CONFIG_USER_DIR, 'navigation.yml');
+const LEGACY_DEFAULT_NAV_YML = path.join(CONFIG_DEFAULT_DIR, 'navigation.yml');
+
+function ensureUserConfigInitialized() {
+  if (fs.existsSync(CONFIG_USER_DIR)) {
+    return { initialized: false, source: 'existing' };
+  }
+
+  if (fs.existsSync(CONFIG_DEFAULT_DIR)) {
+    fs.cpSync(CONFIG_DEFAULT_DIR, CONFIG_USER_DIR, { recursive: true });
+    console.log('[INFO] 检测到 config/user 不存在，已从 config/_default 初始化用户配置（完全替换策略需要完整配置）。');
+    return { initialized: true, source: '_default' };
+  }
+
+  fs.mkdirSync(CONFIG_USER_DIR, { recursive: true });
+  console.log('[WARN] 未找到默认配置目录 config/_default，已创建空的 config/user 目录；建议补齐 site.yml 与 pages/*.yml。');
+  return { initialized: true, source: 'empty' };
+}
+
+function ensureUserSiteYmlExists() {
+  if (fs.existsSync(USER_SITE_YML)) {
+    return true;
+  }
+
+  if (fs.existsSync(DEFAULT_SITE_YML)) {
+    if (!fs.existsSync(CONFIG_USER_DIR)) {
+      fs.mkdirSync(CONFIG_USER_DIR, { recursive: true });
+    }
+    fs.copyFileSync(DEFAULT_SITE_YML, USER_SITE_YML);
+    console.log('[INFO] 未找到 config/user/site.yml，已从 config/_default/site.yml 复制一份。');
+    return true;
+  }
+
+  console.log('[WARN] 未找到可用的 site.yml，无法自动更新导航；请手动在 config/user/site.yml 添加 navigation（含 id: bookmarks）。');
+  return false;
+}
+
+function upsertBookmarksNavInSiteYml(siteYmlPath) {
+  try {
+    const raw = fs.readFileSync(siteYmlPath, 'utf8');
+    const loaded = yaml.load(raw);
+
+    if (!loaded || typeof loaded !== 'object') {
+      return { updated: false, reason: 'site_yml_not_object' };
+    }
+
+    const navigation = loaded.navigation;
+
+    if (Array.isArray(navigation) && navigation.some(item => item && item.id === 'bookmarks')) {
+      return { updated: false, reason: 'already_present' };
+    }
+
+    if (navigation !== undefined && !Array.isArray(navigation)) {
+      return { updated: false, reason: 'navigation_not_array' };
+    }
+
+    const lines = raw.split(/\r?\n/);
+    const navLineIndex = lines.findIndex(line => /^navigation\s*:/.test(line));
+
+    const itemIndent = '  ';
+    const propIndent = `${itemIndent}  `;
+    const snippet = [
+      `${itemIndent}- name: 书签`,
+      `${propIndent}icon: fas fa-bookmark`,
+      `${propIndent}id: bookmarks`,
+    ];
+
+    if (navLineIndex === -1) {
+      // 不存在 navigation 段：直接追加一个新的块（尽量不破坏原文件结构）
+      const normalized = raw.endsWith('\n') ? raw : `${raw}\n`;
+      const spacer = normalized.trim().length === 0 ? '' : '\n';
+      const updatedRaw = `${normalized}${spacer}navigation:\n${snippet.join('\n')}\n`;
+      fs.writeFileSync(siteYmlPath, updatedRaw, 'utf8');
+      return { updated: true, reason: 'added_navigation_block' };
+    }
+
+    // 找到 navigation 块末尾（遇到下一个顶层 key 时结束）
+    let insertAt = lines.length;
+    for (let i = navLineIndex + 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.trim() === '' || /^\s*#/.test(line)) continue;
+      if (/^[A-Za-z0-9_-]+\s*:/.test(line)) {
+        insertAt = i;
+        break;
+      }
+    }
+
+    const updatedLines = [...lines];
+    // 在块末尾插入，确保块内至少有一个空行分隔更易读
+    if (insertAt > 0 && updatedLines[insertAt - 1].trim() !== '') {
+      snippet.unshift('');
+    }
+    updatedLines.splice(insertAt, 0, ...snippet);
+
+    fs.writeFileSync(siteYmlPath, `${updatedLines.join('\n')}\n`, 'utf8');
+    return { updated: true, reason: 'updated_navigation_block' };
+  } catch (error) {
+    return { updated: false, reason: 'error', error };
+  }
+}
 
 // 图标映射，根据URL关键字匹配合适的图标
 const ICON_MAPPING = {
@@ -609,11 +714,15 @@ function generateBookmarksYaml(bookmarks) {
       quotingType: '"'
     });
     
-    // 添加注释
-    const yamlWithComment = 
+    // 添加注释（可选确定性输出，方便版本管理）
+    const deterministic = process.env.MENAV_BOOKMARKS_DETERMINISTIC === '1';
+    const timestampLine = deterministic
+      ? ''
+      : `# 由bookmark-processor.js生成于 ${new Date().toISOString()}\n`;
+
+    const yamlWithComment =
 `# 自动生成的书签配置文件
-# 由bookmark-processor.js生成于 ${new Date().toISOString()}
-# 若要更新，请将新的书签HTML文件放入bookmarks/目录
+${timestampLine}# 若要更新，请将新的书签HTML文件放入bookmarks/目录
 # 此文件使用模块化配置格式，位于config/user/pages/目录下
 
 ${yamlString}`;
@@ -627,40 +736,42 @@ ${yamlString}`;
 
 // 更新导航以包含书签页面
 function updateNavigationWithBookmarks() {
-  // 模块化配置文件
-  const modularUserNavFile = path.join(CONFIG_USER_DIR, 'navigation.yml');
-  const modularDefaultNavFile = 'config/_default/navigation.yml';
-  
-  let navigationUpdated = false;
-  
-  // 按优先级顺序尝试更新导航配置
-  
-  // 1. 首选: 模块化用户导航配置
-  if (fs.existsSync(modularUserNavFile)) {
-    navigationUpdated = updateNavigationFile(modularUserNavFile);
+  // 1) 优先更新 site.yml（当前推荐方式）
+  if (ensureUserSiteYmlExists()) {
+    const result = upsertBookmarksNavInSiteYml(USER_SITE_YML);
+    if (result.updated) {
+      return { updated: true, target: 'site.yml', reason: result.reason };
+    }
+    if (result.reason === 'already_present') {
+      return { updated: false, target: 'site.yml', reason: 'already_present' };
+    }
+    if (result.reason === 'error') {
+      return { updated: false, target: 'site.yml', reason: 'error', error: result.error };
+    }
+    // 如果 site.yml 无法更新（如 navigation 格式异常），继续尝试旧版 navigation.yml
   }
-  // 2. 其次: 模块化默认导航配置
-  else if (fs.existsSync(modularDefaultNavFile)) {
-    // 如果用户导航文件不存在，我们需要先创建它，然后基于默认文件更新
+
+  // 2) 兼容旧版：独立 navigation.yml
+  if (fs.existsSync(LEGACY_USER_NAV_YML)) {
+    const updated = updateNavigationFile(LEGACY_USER_NAV_YML);
+    return { updated, target: 'navigation.yml', reason: updated ? 'updated' : 'already_present' };
+  }
+
+  if (fs.existsSync(LEGACY_DEFAULT_NAV_YML)) {
     try {
-      // 读取默认导航文件
-      const defaultNavContent = fs.readFileSync(modularDefaultNavFile, 'utf8');
-      const defaultNav = yaml.load(defaultNavContent);
-      
-      // 确保目录存在
+      const defaultNavContent = fs.readFileSync(LEGACY_DEFAULT_NAV_YML, 'utf8');
       if (!fs.existsSync(CONFIG_USER_DIR)) {
         fs.mkdirSync(CONFIG_USER_DIR, { recursive: true });
       }
-      
-      // 写入用户导航文件
-      fs.writeFileSync(modularUserNavFile, defaultNavContent, 'utf8');
-      
-      // 更新新创建的文件
-      navigationUpdated = updateNavigationFile(modularUserNavFile);
+      fs.writeFileSync(LEGACY_USER_NAV_YML, defaultNavContent, 'utf8');
+      const updated = updateNavigationFile(LEGACY_USER_NAV_YML);
+      return { updated, target: 'navigation.yml', reason: updated ? 'updated' : 'already_present' };
     } catch (error) {
-      console.error(`Error creating user navigation file:`, error);
+      return { updated: false, target: 'navigation.yml', reason: 'error', error };
     }
   }
+
+  return { updated: false, target: null, reason: 'no_navigation_config' };
 }
 
 // 更新单个导航配置文件
@@ -716,7 +827,7 @@ async function main() {
   console.log('[步骤 1/5] 查找书签文件...');
   const bookmarkFile = getLatestBookmarkFile();
   if (!bookmarkFile) {
-    console.log('[ERROR] 未找到书签文件，处理终止');
+    console.log('[WARN] 未找到书签文件，已跳过处理（将HTML书签文件放入 bookmarks/ 后再运行）。');
     return;
   }
   console.log('[SUCCESS] 找到书签文件\n');
@@ -748,6 +859,9 @@ async function main() {
     // 保存文件
     console.log('[步骤 5/5] 保存配置文件...');
     try {
+      // 完全替换策略：若尚未初始化用户配置，则先从默认配置初始化一份完整配置
+      ensureUserConfigInitialized();
+
       // 确保目标目录存在
       if (!fs.existsSync(CONFIG_USER_PAGES_DIR)) {
         fs.mkdirSync(CONFIG_USER_PAGES_DIR, { recursive: true });
@@ -767,8 +881,19 @@ async function main() {
       
       // 更新导航
       console.log('[附加步骤] 更新导航配置...');
-      updateNavigationWithBookmarks();
-      console.log('[SUCCESS] 导航配置已更新\n');
+      const navUpdateResult = updateNavigationWithBookmarks();
+      if (navUpdateResult.updated) {
+        console.log(`[SUCCESS] 导航配置已更新（${navUpdateResult.target}）\n`);
+      } else if (navUpdateResult.reason === 'already_present') {
+        console.log('[INFO] 导航配置已包含书签入口，无需更新\n');
+      } else if (navUpdateResult.reason === 'no_navigation_config') {
+        console.log('[WARN] 未找到可更新的导航配置文件；请确认 config/user/site.yml 存在且包含 navigation\n');
+      } else if (navUpdateResult.reason === 'error') {
+        console.log('[WARN] 导航更新失败，请手动检查配置文件格式（详见错误信息）\n');
+        console.error(navUpdateResult.error);
+      } else {
+        console.log('[INFO] 导航配置无需更新\n');
+      }
       
     } catch (writeError) {
       console.error(`[ERROR] 写入文件时出错:`, writeError);
@@ -793,4 +918,13 @@ if (require.main === module) {
     console.error('Unhandled error in bookmark processing:', err);
     process.exit(1);
   });
-} 
+}
+
+module.exports = {
+  ensureUserConfigInitialized,
+  ensureUserSiteYmlExists,
+  upsertBookmarksNavInSiteYml,
+  parseBookmarks,
+  generateBookmarksYaml,
+  updateNavigationWithBookmarks,
+};

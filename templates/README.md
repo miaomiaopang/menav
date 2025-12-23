@@ -98,7 +98,6 @@ templates/
 <div class="welcome-section">
     <h2>{{profile.title}}</h2>
     <h3>{{profile.subtitle}}</h3>
-    <p class="subtitle">{{profile.description}}</p>
 </div>
 {{#each categories}}
     {{> category}}
@@ -134,13 +133,13 @@ templates/
 
 #### category.hbs - 分类容器组件
 
-`category.hbs` 是支持多层级嵌套的核心组件，可以递归渲染分类和子分类结构。
+`category.hbs` 是多层级嵌套的核心组件，可渲染 `categories -> subcategories -> groups -> sites` 的结构；更深一层的 `subgroups` 由 `group.hbs` 负责渲染。
 
 **功能特性**:
-- 支持无限层级的分类嵌套
-- 自动计算标题层级（h2, h3, h4...）
-- 根据层级自动应用对应的CSS类
-- 支持三种内容类型：子分类、分组、站点
+- 支持 2~4 层嵌套（`categories -> subcategories -> groups -> subgroups -> sites`，其中 `subgroups` 可选）
+- 自动计算标题层级（h2/h3/h4/h5）
+- 根据层级自动应用对应的 CSS 类（如 `category-level-2`、`group-level-4`）
+- 分类容器支持三种内容：子分类、分组、站点（分组内可继续包含子分组）
 
 **递归渲染原理**:
 通过在模板内部调用自身实现递归渲染：
@@ -171,6 +170,7 @@ templates/
 
 **功能特性**:
 - 支持在分类内创建站点分组
+- 支持子分组（`subgroups`，用于第 4 层结构）
 - 自动应用层级样式
 - 支持展开/折叠功能
 - 与category.hbs保持一致的层级系统
@@ -188,7 +188,7 @@ templates/
 
 #### 多层级嵌套结构示例
 
-典型的四层级结构：分类 → 子分类 → 分组 → 站点
+典型的（最多 4 层）结构：分类 → 子分类 → 分组 → 子分组 → 站点（`subgroups` 可选）
 
 ```yaml
 # 配置示例
@@ -201,13 +201,16 @@ categories:
         groups:
           - name: "框架"
             icon: "fas fa-cubes"
-            sites:
-              - name: "React"
-                url: "https://reactjs.org"
+            subgroups:
+              - name: "React生态"
                 icon: "fab fa-react"
-              - name: "Vue"
-                url: "https://vuejs.org"
-                icon: "fab fa-vuejs"
+                sites:
+                  - name: "React"
+                    url: "https://reactjs.org"
+                    icon: "fab fa-react"
+                  - name: "Next.js"
+                    url: "https://nextjs.org"
+                    icon: "fas fa-triangle"
 ```
 
 对应的模板渲染：
@@ -224,22 +227,32 @@ categories:
         <div class="category-header">
           <h3><i class="fas fa-laptop-code"></i> 前端开发</h3>
         </div>
-        <div class="category-content">
-          <div class="groups-container">
-            <!-- 使用 group.hbs，默认 level=3 -->
-            <div class="group group-level-3" data-level="3">
-              <div class="group-header">
-                <h4><i class="fas fa-cubes"></i> 框架</h4>
-              </div>
-              <div class="group-content">
-                <div class="sites-grid">
-                  <!-- 渲染站点卡片 -->
-                  {{> site-card site}}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+	        <div class="category-content">
+	          <div class="groups-container">
+	            <!-- 使用 group.hbs，默认 level=3 -->
+	            <div class="group group-level-3" data-level="3">
+	              <div class="group-header">
+	                <h4><i class="fas fa-cubes"></i> 框架</h4>
+	              </div>
+	              <div class="group-content">
+	                <div class="subgroups-container">
+	                  <!-- group.hbs 渲染 subgroups，level=4 -->
+	                  <div class="group group-level-4" data-level="4">
+	                    <div class="group-header">
+	                      <h5><i class="fab fa-react"></i> React生态</h5>
+	                    </div>
+	                    <div class="group-content">
+	                      <div class="sites-grid">
+	                        <!-- 渲染站点卡片 -->
+	                        {{> site-card site}}
+	                      </div>
+	                    </div>
+	                  </div>
+	                </div>
+	              </div>
+	            </div>
+	          </div>
+	        </div>
       </section>
     </div>
   </div>
@@ -251,16 +264,16 @@ categories:
 - **层级1 (level=1)**: 顶级分类，使用h2标题
 - **层级2 (level=2)**: 子分类，使用h3标题
 - **层级3 (level=3)**: 分组，使用h4标题
-- **层级4+**: 更深层级，继续递增标题层级
+- **层级4 (level=4)**: 子分组，使用h5标题（用于 4 层结构）
 
 每个层级都有对应的CSS类：
-- `category-level-1`, `category-level-2`, ...
-- `group-level-1`, `group-level-2`, ...
+- `category-level-1`, `category-level-2`
+- `group-level-3`, `group-level-4`
 
 这种设计确保了：
 1. 语义化的HTML结构
 2. 一致的视觉层级
-3. 可扩展的嵌套深度
+3. 可预测的嵌套深度（当前导入脚本与样式保证到 level=4）
 4. 灵活的样式定制
 
 ### 站点图标渲染（favicon/manual）
@@ -271,22 +284,27 @@ categories:
 
 ```handlebars
 {{#if url}}
-  <a href="{{url}}" class="site-card" title="{{name}} - {{#if description}}{{description}}{{else}}{{url}}{{/if}}" {{#if external}}target="_blank" rel="noopener"{{/if}}>
+<a href="{{url}}" class="site-card{{#if style}} site-card-{{style}}{{/if}}"
+   {{#if external}}target="_blank" rel="noopener"{{/if}}
+   data-type="site"
+   data-name="{{name}}"
+   data-url="{{url}}"
+   data-icon="{{#if icon}}{{icon}}{{else}}fas fa-link{{/if}}"
+   data-description="{{#if description}}{{description}}{{else}}{{extractDomain url}}{{/if}}">
     {{#ifEquals @root.icons.mode "favicon"}}
       {{#ifHttpUrl url}}
-        <i class="fas fa-circle-notch fa-spin icon-placeholder" aria-hidden="true"></i>
-        <img
-          class="favicon-icon"
-          src="https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={{encodeURIComponent url}}&size=32"
-          alt="{{name}} favicon"
-          loading="lazy"
-          {{!-- 可选：降低引用者信息外泄 --}}
-          {{!-- referrerpolicy="no-referrer" --}}
-          style="opacity:0;"
-          onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';"
-          onerror="this.style.display='none'; this.previousElementSibling.style.display='none'; this.nextElementSibling.style.display='inline-block';"
-        />
-        <i class="fas fa-link icon-fallback" aria-hidden="true" style="display:none;"></i>
+        <div class="icon-container">
+          <i class="fas fa-circle-notch fa-spin icon-placeholder" aria-hidden="true"></i>
+          <img
+            class="favicon-icon"
+            src="https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url={{encodeURIComponent url}}&size=32"
+            alt="{{name}} favicon"
+            loading="lazy"
+            onload="this.classList.add('loaded'); this.previousElementSibling.classList.add('hidden');"
+            onerror="this.classList.add('error'); this.previousElementSibling.classList.add('hidden'); this.nextElementSibling.classList.add('visible');"
+          />
+          <i class="fas fa-link icon-fallback" aria-hidden="true"></i>
+        </div>
       {{else}}
         <i class="{{#if icon}}{{icon}}{{else}}fas fa-link{{/if}}"></i>
       {{/ifHttpUrl}}
@@ -294,12 +312,14 @@ categories:
       <i class="{{#if icon}}{{icon}}{{else}}fas fa-link{{/if}}"></i>
     {{/ifEquals}}
     <h3>{{#if name}}{{name}}{{else}}未命名站点{{/if}}</h3>
-    <p>{{#if description}}{{description}}{{else}}{{url}}{{/if}}</p>
-  </a>
+    <p>{{#if description}}{{description}}{{else}}{{extractDomain url}}{{/if}}</p>
+</a>
 {{/if}}
 ```
 
-提示：关于 `icons.mode` 与隐私说明，请参见 README 的“网站图标模式（icons.mode）”章节与“近期更新”。
+提示：关于 `icons.mode` 的配置与隐私说明，请参见：
+- `config/README.md` 的 `site.yml 常用字段`：[`../config/README.md#siteyml-常用字段`](../config/README.md#siteyml-%E5%B8%B8%E7%94%A8%E5%AD%97%E6%AE%B5)
+- 根目录 `README.md` 的“近期更新”：[`../README.md#近期更新`](../README.md#%E8%BF%91%E6%9C%9F%E6%9B%B4%E6%96%B0)
 
 ## 模板数据流
 

@@ -1,3 +1,22 @@
+function menavExtractDomain(url) {
+    if (!url) return '';
+
+    try {
+        // 移除协议部分 (http://, https://, etc.)
+        let domain = String(url).replace(/^[a-zA-Z]+:\/\//, '');
+
+        // 移除路径、查询参数和锚点
+        domain = domain.split('/')[0].split('?')[0].split('#')[0];
+
+        // 移除端口号（如果有）
+        domain = domain.split(':')[0];
+
+        return domain;
+    } catch (e) {
+        return String(url);
+    }
+}
+
 // 全局MeNav对象 - 用于浏览器扩展
 window.MeNav = {
     version: "1.0.0",
@@ -53,10 +72,27 @@ window.MeNav = {
                 element.setAttribute('data-description', newData.description);
             }
             if (newData.icon) {
-                // 优先更新站点卡片中的回退图标（favicon模式下存在）
-                const iconElement = element.querySelector('i.icon-fallback') || element.querySelector('i');
+                const iconElement =
+                    element.querySelector('i.icon-fallback') ||
+                    element.querySelector('i.site-icon') ||
+                    element.querySelector('.site-card-icon i') ||
+                    element.querySelector('i');
+
                 if (iconElement) {
-                    iconElement.className = newData.icon;
+                    const nextIconClass = String(newData.icon || '').trim();
+                    const preservedClasses = [];
+
+                    if (iconElement.classList.contains('icon-fallback')) {
+                        preservedClasses.push('icon-fallback');
+                    }
+                    if (iconElement.classList.contains('site-icon')) {
+                        preservedClasses.push('site-icon');
+                    }
+
+                    if (nextIconClass) {
+                        iconElement.className = nextIconClass;
+                        preservedClasses.forEach(cls => iconElement.classList.add(cls));
+                    }
                 }
                 element.setAttribute('data-icon', newData.icon);
             }
@@ -169,45 +205,92 @@ window.MeNav = {
             // 创建新的站点卡片
             const newSite = document.createElement('a');
             newSite.className = 'site-card';
-            newSite.href = data.url || '#';
-            newSite.title = data.name + (data.description ? ' - ' + data.description : '');
+
+            const siteName = data.name || '未命名站点';
+            const siteUrl = data.url || '#';
+            const siteIcon = data.icon || 'fas fa-link';
+            const siteDescription = data.description || (data.url ? menavExtractDomain(data.url) : '');
+
+            newSite.href = siteUrl;
+            newSite.title = siteName + (siteDescription ? ' - ' + siteDescription : '');
             
             // 设置数据属性
             newSite.setAttribute('data-type', 'site');
-            newSite.setAttribute('data-name', data.name || '未命名站点');
+            newSite.setAttribute('data-name', siteName);
             newSite.setAttribute('data-url', data.url || '');
-            newSite.setAttribute('data-icon', data.icon || 'fas fa-link');
-            newSite.setAttribute('data-description', data.description || '');
+            newSite.setAttribute('data-icon', siteIcon);
+            newSite.setAttribute('data-description', siteDescription);
 
-            // 添加内容（根据图标模式渲染）
+            // 添加内容（根据图标模式渲染，避免 innerHTML 注入）
+            const iconWrapper = document.createElement('div');
+            iconWrapper.className = 'site-card-icon';
+            iconWrapper.setAttribute('aria-hidden', 'true');
+
+            const contentWrapper = document.createElement('div');
+            contentWrapper.className = 'site-card-content';
+
+            const titleEl = document.createElement('h3');
+            titleEl.textContent = siteName;
+
+            const descEl = document.createElement('p');
+            descEl.textContent = siteDescription;
+
+            contentWrapper.appendChild(titleEl);
+            contentWrapper.appendChild(descEl);
+
+            let iconsMode = 'favicon';
             try {
-                const cfg = window.MeNav && typeof window.MeNav.getConfig === 'function' ? window.MeNav.getConfig() : null;
-                const iconsMode = (cfg && (cfg.data?.icons?.mode || cfg.icons?.mode)) || 'favicon';
-                if (iconsMode === 'favicon' && data.url && /^https?:\/\//i.test(data.url)) {
-                    const faviconUrl = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(data.url)}&size=32`;
-                    newSite.innerHTML = `
-                        <i class="fas fa-circle-notch fa-spin icon-placeholder" aria-hidden="true"></i>
-                        <img class="favicon-icon" src="${faviconUrl}" alt="${(data.name || '站点')} favicon" loading="lazy" style="opacity:0;"
-                             onload="this.style.opacity='1'; this.previousElementSibling.style.display='none';"
-                             onerror="this.style.display='none'; this.previousElementSibling.style.display='none'; this.nextElementSibling.style.display='inline-block';" />
-                        <i class="fas fa-link icon-fallback" aria-hidden="true" style="display:none;"></i>
-                        <h3>${data.name || '未命名站点'}</h3>
-                        <p>${data.description || ''}</p>
-                    `;
-                } else {
-                    newSite.innerHTML = `
-                        <i class="${data.icon || 'fas fa-link'}"></i>
-                        <h3>${data.name || '未命名站点'}</h3>
-                        <p>${data.description || ''}</p>
-                    `;
-                }
+                const cfg =
+                    window.MeNav && typeof window.MeNav.getConfig === 'function'
+                        ? window.MeNav.getConfig()
+                        : null;
+                iconsMode = (cfg && (cfg.data?.icons?.mode || cfg.icons?.mode)) || 'favicon';
             } catch (e) {
-                newSite.innerHTML = `
-                    <i class="${data.icon || 'fas fa-link'}"></i>
-                    <h3>${data.name || '未命名站点'}</h3>
-                    <p>${data.description || ''}</p>
-                `;
+                iconsMode = 'favicon';
             }
+
+            if (iconsMode === 'favicon' && data.url && /^https?:\/\//i.test(data.url)) {
+                const faviconUrl = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=${encodeURIComponent(data.url)}&size=32`;
+
+                const iconContainer = document.createElement('div');
+                iconContainer.className = 'icon-container';
+
+                const placeholder = document.createElement('i');
+                placeholder.className = 'fas fa-circle-notch fa-spin icon-placeholder';
+                placeholder.setAttribute('aria-hidden', 'true');
+
+                const fallback = document.createElement('i');
+                fallback.className = `${siteIcon} icon-fallback`;
+                fallback.setAttribute('aria-hidden', 'true');
+
+                const favicon = document.createElement('img');
+                favicon.className = 'favicon-icon';
+                favicon.src = faviconUrl;
+                favicon.alt = `${siteName} favicon`;
+                favicon.loading = 'lazy';
+                favicon.addEventListener('load', () => {
+                    favicon.classList.add('loaded');
+                    placeholder.classList.add('hidden');
+                });
+                favicon.addEventListener('error', () => {
+                    favicon.classList.add('error');
+                    placeholder.classList.add('hidden');
+                    fallback.classList.add('visible');
+                });
+
+                iconContainer.appendChild(placeholder);
+                iconContainer.appendChild(favicon);
+                iconContainer.appendChild(fallback);
+                iconWrapper.appendChild(iconContainer);
+            } else {
+                const iconEl = document.createElement('i');
+                iconEl.className = `${siteIcon} site-icon`;
+                iconEl.setAttribute('aria-hidden', 'true');
+                iconWrapper.appendChild(iconEl);
+            }
+
+            newSite.appendChild(iconWrapper);
+            newSite.appendChild(contentWrapper);
 
             // 添加到DOM
             sitesGrid.appendChild(newSite);
@@ -222,13 +305,13 @@ window.MeNav = {
 
             // 触发元素添加事件
             this.events.emit('elementAdded', {
-                id: data.name,
+                id: siteName,
                 type: 'site',
                 parentId: parentId,
                 data: data
             });
 
-            return data.name;
+            return siteName;
         } else if (type === 'category') {
             // 查找父级页面容器
             parent = document.querySelector(`[data-container="categories"]`);
@@ -343,10 +426,32 @@ window.MeNav = {
 };
 
 // 多层级嵌套书签功能
+function getCollapsibleNestedContainers(root) {
+    if (!root) return [];
+    const headers = root.querySelectorAll(
+        '.category > .category-header[data-toggle="category"], .group > .group-header[data-toggle="group"]'
+    );
+    return Array.from(headers).map(header => header.parentElement).filter(Boolean);
+}
+
+function isNestedContainerCollapsible(container) {
+    if (!container) return false;
+
+    if (container.classList.contains('category')) {
+        return Boolean(container.querySelector(':scope > .category-header[data-toggle="category"]'));
+    }
+
+    if (container.classList.contains('group')) {
+        return Boolean(container.querySelector(':scope > .group-header[data-toggle="group"]'));
+    }
+
+    return false;
+}
+
 window.MeNav.expandAll = function() {
     const activePage = document.querySelector('.page.active');
     if (activePage) {
-        activePage.querySelectorAll('.category.collapsed, .group.collapsed').forEach(element => {
+        getCollapsibleNestedContainers(activePage).forEach(element => {
             element.classList.remove('collapsed');
             saveToggleState(element, 'expanded');
         });
@@ -356,7 +461,7 @@ window.MeNav.expandAll = function() {
 window.MeNav.collapseAll = function() {
     const activePage = document.querySelector('.page.active');
     if (activePage) {
-        activePage.querySelectorAll('.category:not(.collapsed), .group:not(.collapsed)').forEach(element => {
+        getCollapsibleNestedContainers(activePage).forEach(element => {
             element.classList.add('collapsed');
             saveToggleState(element, 'collapsed');
         });
@@ -368,8 +473,9 @@ window.MeNav.toggleCategories = function() {
     const activePage = document.querySelector('.page.active');
     if (!activePage) return;
     
-    const allElements = activePage.querySelectorAll('.category, .group');
-    const collapsedElements = activePage.querySelectorAll('.category.collapsed, .group.collapsed');
+    const allElements = getCollapsibleNestedContainers(activePage);
+    const collapsedElements = allElements.filter(element => element.classList.contains('collapsed'));
+    if (allElements.length === 0) return;
     
     // 如果收起的数量 >= 总数的一半，执行展开；否则执行收起
     if (collapsedElements.length >= allElements.length / 2) {
@@ -398,13 +504,13 @@ function updateCategoryToggleIcon(state) {
     }
 }
 
-window.MeNav.toggleCategory = function(categoryName, subcategoryName = null, groupName = null) {
-    const selector = groupName
-        ? `[data-name="${categoryName}"] [data-name="${subcategoryName}"] [data-name="${groupName}"]`
-        : subcategoryName
-            ? `[data-name="${categoryName}"] [data-name="${subcategoryName}"]`
-            : `[data-name="${categoryName}"]`;
-            
+window.MeNav.toggleCategory = function(categoryName, subcategoryName = null, groupName = null, subgroupName = null) {
+    let selector = `[data-name="${categoryName}"]`;
+
+    if (subcategoryName) selector += ` [data-name="${subcategoryName}"]`;
+    if (groupName) selector += ` [data-name="${groupName}"]`;
+    if (subgroupName) selector += ` [data-name="${subgroupName}"]`;
+
     const element = document.querySelector(selector);
     if (element) {
         toggleNestedElement(element);
@@ -422,6 +528,7 @@ window.MeNav.getNestedStructure = function() {
 
 // 切换嵌套元素
 function toggleNestedElement(container) {
+    if (!isNestedContainerCollapsible(container)) return;
     const isCollapsed = container.classList.contains('collapsed');
     
     if (isCollapsed) {
@@ -499,6 +606,11 @@ function extractNestedData(element) {
     const groups = element.querySelectorAll(':scope > .category-content > .groups-container > .group');
     if (groups.length > 0) {
         data.groups = Array.from(groups).map(group => extractNestedData(group));
+    }
+
+    const subgroups = element.querySelectorAll(':scope > .group-content > .subgroups-container > .group');
+    if (subgroups.length > 0) {
+        data.subgroups = Array.from(subgroups).map(subgroup => extractNestedData(subgroup));
     }
     
     const sites = element.querySelectorAll(':scope > .category-content > .sites-grid > .site-card, :scope > .group-content > .sites-grid > .site-card');
@@ -766,6 +878,28 @@ document.addEventListener('DOMContentLoaded', () => {
     menuToggle.addEventListener('click', toggleSidebar);
     searchToggle.addEventListener('click', toggleSearch);
     overlay.addEventListener('click', closeAllPanels);
+
+    // 全局快捷键：Ctrl/Cmd + K 聚焦搜索
+    document.addEventListener('keydown', e => {
+        const key = (e.key || '').toLowerCase();
+        if (key !== 'k') return;
+        if ((!e.ctrlKey && !e.metaKey) || e.altKey) return;
+
+        const target = e.target;
+        const isTypingTarget =
+            target &&
+            (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+
+        if (isTypingTarget && target !== searchInput) return;
+
+        e.preventDefault();
+
+        if (isMobile() && !isSearchOpen) {
+            toggleSearch();
+        }
+
+        searchInput && searchInput.focus();
+    });
 
     // 检查是否是移动设备
     function isMobile() {
@@ -1352,13 +1486,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }, index * 100);
         });
 
-        // 初始展开当前页面的子菜单
-        const activeNavItem = document.querySelector('.nav-item.active');
-        if (activeNavItem) {
-            const activeWrapper = activeNavItem.closest('.nav-item-wrapper');
-            if (activeWrapper) {
+        // 初始展开当前页面的子菜单：高亮项如果有子菜单，需要同步展开
+        document.querySelectorAll('.nav-item.active').forEach(activeItem => {
+            const activeWrapper = activeItem.closest('.nav-item-wrapper');
+            if (!activeWrapper) return;
+
+            const hasSubmenu = activeWrapper.querySelector('.submenu');
+            if (hasSubmenu) {
+                activeWrapper.classList.add('expanded');
             }
-        }
+        });
 
         // 导航项点击效果
         navItems.forEach(item => {

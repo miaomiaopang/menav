@@ -66,7 +66,12 @@
         <!-- 左侧导航 -->
         <nav class="sidebar">
             <div class="logo">
-                <h1 data-editable="logo-text">{{site.logo_text}}</h1>
+                <div class="logo-brand">
+                    {{#if site.favicon}}
+                    <img class="logo-image" src="./{{site.favicon}}" alt="{{site.title}} logo" width="26" height="26">
+                    {{/if}}
+                    <h1 data-editable="logo-text">{{site.logo_text}}</h1>
+                </div>
                 <button class="sidebar-toggle" aria-label="收起/展开侧边栏">
                     <i class="fas fa-chevron-left toggle-icon"></i>
                 </button>
@@ -80,31 +85,30 @@
                     {{{navigation}}}
                     {{/if}}
                 </div>
-
-                <div class="nav-section">
-                    <div class="section-title">
-                        <i class="fas fa-link"></i>
-                    </div>
-                    {{#if social}}
-                    {{> social-links social}}
-                    {{else}}
-                    {{{socialLinks}}}
-                    {{/if}}
-                </div>
             </div>
 
-            <div class="copyright">
-                <p>© {{currentYear}} <a href="https://github.com/rbetree/menav" target="_blank" rel="noopener">MeNav</a></p>
-                <p>by <a href="https://github.com/rbetree" target="_blank" rel="noopener">rbetree</a></p>
-            </div>
-        </nav>
+	            <div class="sidebar-social" data-container="social-links">
+	                {{#if social}}
+	                {{> social-links social}}
+	                {{else}}
+	                {{{socialLinks}}}
+	                {{/if}}
+	            </div>
+
+	            <div class="sidebar-footer">
+	                <div class="copyright">
+	                    <p>© {{currentYear}} <a href="https://github.com/rbetree/menav" target="_blank" rel="noopener">MeNav</a></p>
+	                    <p>by <a href="https://github.com/rbetree" target="_blank" rel="noopener">rbetree</a></p>
+	                </div>
+	            </div>
+	        </nav>
 
         <!-- 右侧内容区 -->
         <main class="content">
             <!-- 搜索框容器 -->
             <div class="search-container">
                 <div class="search-box">
-                    <input type="text" id="search" placeholder="搜索...">
+                    <input type="text" id="search" placeholder="搜索 Ctrl+K ..." aria-label="搜索" aria-keyshortcuts="Control+K Meta+K">
                     <i class="fas fa-search search-icon" title="本地搜索"></i>
                     <i class="fas fa-chevron-down search-engine-toggle" title="选择搜索引擎" role="button" aria-label="选择搜索引擎" aria-expanded="false" tabindex="0"></i>
                     <div class="search-engine-dropdown">
