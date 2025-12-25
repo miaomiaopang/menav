@@ -17,6 +17,18 @@ function menavExtractDomain(url) {
     }
 }
 
+// 修复移动端 `100vh` 视口高度问题：用实际可视高度驱动布局，避免侧边栏/内容区底部被浏览器 UI 遮挡
+function menavUpdateAppHeight() {
+    const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    document.documentElement.style.setProperty('--app-height', `${Math.round(viewportHeight)}px`);
+}
+
+menavUpdateAppHeight();
+window.addEventListener('resize', menavUpdateAppHeight);
+if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', menavUpdateAppHeight);
+}
+
 // 全局MeNav对象 - 用于浏览器扩展
 window.MeNav = {
     version: "1.0.0",

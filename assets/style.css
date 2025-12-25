@@ -27,6 +27,8 @@
     --gradient-color-simple: linear-gradient(135deg, #7694B9 0%, #a855f7 100%);
     --sidebar-width: 240px;
     --sidebar-collapsed-width: 60px;
+    /* 统一视口高度：由 JS 动态写入（移动端避免 100vh 被浏览器 UI 影响） */
+    --app-height: 100vh;
 
     /* Spacing System */
     --spacing-xs: 0.25rem;
@@ -206,7 +208,7 @@ body {
     line-height: 1.6;
     background-color: var(--bg-color);
     color: var(--text-color);
-    min-height: 100vh;
+    min-height: var(--app-height, 100vh);
     overflow: hidden; /* 防止body滚动 */
     padding-right: 0 !important; /* 防止滚动条导致的布局偏移 */
     transition: background-color 0.3s ease, color 0.3s ease;
@@ -215,7 +217,7 @@ body {
 /* 布局 */
 .layout {
     display: flex;
-    min-height: 100vh;
+    min-height: var(--app-height, 100vh);
     position: relative;
     z-index: 1;
     overflow: hidden; /* 防止layout滚动 */
@@ -303,7 +305,7 @@ body.loaded .layout {
     -webkit-backface-visibility: hidden;
     backface-visibility: hidden;
     transform: translateZ(0);
-    height: 100vh;
+    height: var(--app-height, 100vh);
     display: grid;
     grid-template-rows: auto 1fr auto auto;
     grid-template-areas: 
@@ -469,6 +471,7 @@ body.loaded .layout {
 /* 侧边栏内容区域 - 可滚动 */
 .sidebar-content {
     grid-area: content;
+    min-height: 0; /* 允许在 CSS Grid 内正确收缩与滚动，避免把 footer 挤出可视区域 */
     overflow-y: auto; /* 只有内容区域可滚动 */
     padding: 0 1.2rem;
     display: flex;
@@ -652,7 +655,7 @@ body.loaded .layout {
     padding: 2rem 1.5rem; 
     background-color: var(--bg-color);
     position: relative;
-    height: 100vh; /* 固定高度 */
+    height: var(--app-height, 100vh); /* 固定高度（移动端避免 100vh 问题） */
     overflow-y: auto; /* 使用auto替代scroll，只在需要时显示滚动条 */
     overflow-x: hidden;
     width: calc(100vw - var(--sidebar-width));
@@ -2282,6 +2285,7 @@ body .content.expanded {
 .sidebar-footer {
     grid-area: footer;
     padding: 1rem 1.2rem;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     text-align: center;
     color: var(--text-muted);
     font-size: 0.85rem;

@@ -28,7 +28,6 @@
   <img src="assets/preview_light.png" alt="明亮主题预览" width="48%">
   <img src="assets/preview_dark.png" alt="黑暗主题预览" width="48%">
 </p>
-<p align="center">左：明亮　右：黑暗</p>
 
 ## 特点
 
@@ -198,41 +197,14 @@ icons:
 
 ## 项目结构
 
-```bash
+```text
 menav/
-├── assets/           # 静态资源文件
-│   ├── style.css     # 样式表
-│   └── menav.svg     # 网站图标
-├── src/              # 源代码
-│   ├── generator.js  # 静态网站生成器
-│   ├── bookmark-processor.js # 书签导入处理器
-│   └── script.js     # 前端JavaScript脚本
-├── templates/        # Handlebars模板目录
-│   ├── layouts/      # 布局模板
-│   │   └── default.hbs  # 默认布局模板
-│   ├── pages/        # 页面模板
-│   │   ├── home.hbs     # 首页模板
-│   │   ├── projects.hbs # 项目页模板
-│   │   └── ...          # 其他页面模板
-│   └── components/   # 可复用组件模板
-│       ├── navigation.hbs  # 导航组件
-│       ├── category.hbs    # 分类组件
-│       ├── site-card.hbs   # 站点卡片组件
-│       └── ...             # 其他组件
-├── dist/             # 生成的静态网站（由generator.js生成）
-├── bookmarks/        # 书签导入目录
-├── config/           # 模块化配置目录
-│   ├── _default/     # 默认配置
-│   │   ├── site.yml  # 网站基本配置（含导航配置）
-│   │   └── pages/    # 页面配置
-│   │       ├── home.yml
-│   │       ├── projects.yml
-│   │       ├── articles.yml
-│   │       ├── friends.yml
-│   │       └── bookmarks.yml
-│   └── user/         # 用户自定义配置
-│       ├── site.yml  # 用户网站配置（含导航配置）
-│       └── pages/    # 用户页面配置
+├── src/        # 生成器、书签处理、前端脚本（入口：src/generator.js）
+├── templates/  # Handlebars 模板（layouts/pages/components）
+├── config/     # 模块化配置
+├── assets/     # 静态资源
+├── bookmarks/  # 书签导入相关
+└── dist/       # 构建产物
 ```
 
 ## 文档导航
