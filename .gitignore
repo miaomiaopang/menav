@@ -39,3 +39,5 @@ tests/fixtures/
 # SpecStory explanation file
 .specstory/.what-is-this.md
 AGENTS.md
+/.claude
+/discord-style-navstation

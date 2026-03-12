@@ -4,10 +4,15 @@
      data-icon="{{icon}}"
      data-level="{{#if level}}{{level}}{{else}}3{{/if}}">
     
-    <div class="group-header">
+    <div class="group-header"{{#ifCond subgroups '||' sites}} data-toggle="group"{{/ifCond}}>
         <h{{#if level}}{{add level 1}}{{else}}4{{/if}} data-editable="group-name">
             <i class="{{icon}}"></i> 
             {{name}}
+            {{#ifCond subgroups '||' sites}}
+                <span class="toggle-icon">
+                    <i class="fas fa-chevron-down"></i>
+                </span>
+            {{/ifCond}}
         </h{{#if level}}{{add level 1}}{{else}}4{{/if}}>
     </div>
     
@@ -24,7 +29,7 @@
             <div class="sites-grid" data-container="sites">
                 {{#if sites.length}}
                     {{#each sites}}
-                        {{> site-card}}
+                        {{> site-card style=@root.siteCardStyle}}
                     {{/each}}
                 {{else}}
                     <p class="empty-sites">暂无网站</p>
