@@ -45,7 +45,7 @@ categories:
         icon: fas fa-fire
         description: self-hosted
       - name: MoonTV
-        url: http://129.154.236.75:3681/
+        url: http://168.138.184.65:3061/
         icon: far fa-moon
         description: self-hosted
       - name: searx
