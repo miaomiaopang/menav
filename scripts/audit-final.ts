@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
+import { loadConfig } from '../src/lib/config/index.ts';
+import { getArticlesCacheDir } from '../src/lib/cache/articles.ts';
 import { createLogger, startTimer } from '../src/lib/logging/logger.ts';
 
 const log = createLogger('audit:final');
@@ -119,11 +121,7 @@ function assertIncludes(text: string, token: string, message: string): void {
 }
 
 function ensureBuildArtifacts() {
-  const required = [
-    'dist/index.html',
-    'dist/script.js',
-    'dist/search-index.json',
-  ];
+  const required = ['dist/index.html', 'dist/script.js', 'dist/search-index.json'];
   const missing = required.filter((file) => !exists(file));
   if (missing.length === 0) return;
 
@@ -235,6 +233,63 @@ function auditDependencyDirection() {
   if (hits.length > 0) fail('源码依赖方向越界', hits.join('; '));
 }
 
+function auditExternalDataPresence(searchIndex: SearchIndex) {
+  // 数据链路回归护栏：当 articles 页存在非空 feed 缓存但搜索索引缺少对应 article 条目时，
+  // 说明缓存格式/路径或索引生成回归。仅在缓存存在且非空时校验，避免无缓存的全新检出（CI）
+  // 与"当天抓取为空"的合法状态误报。
+  const items = Array.isArray(searchIndex.items)
+    ? (searchIndex.items as Record<string, unknown>[])
+    : [];
+
+  let config: {
+    pages?: Record<string, Record<string, unknown>>;
+    site?: { rss?: { cacheDir?: unknown } };
+  };
+  try {
+    config = loadConfig() as typeof config;
+  } catch (error) {
+    log.warn('auditExternalDataPresence 跳过：loadConfig 失败', {
+      message: getErrorMessage(error),
+    });
+    return;
+  }
+
+  const pages = config.pages || {};
+  // 与缓存读取侧 getArticlesCacheDir 保持完全一致（RSS_CACHE_DIR → config.rss.cacheDir → 'dev'），
+  // 路径基准也用 process.cwd()（与 tryLoadArticlesFeedCache 读取侧一致）
+  const cacheDir = getArticlesCacheDir(config);
+  const cacheBase = path.isAbsolute(cacheDir) ? cacheDir : path.join(process.cwd(), cacheDir);
+
+  for (const [pageId, pageConfig] of Object.entries(pages)) {
+    // 模板解析与构建侧 resolveTemplateNameForPage 的内建名回退保持一致
+    const template = pageConfig?.template ? String(pageConfig.template).trim() : '';
+    const resolvedTemplate = template || (pageId === 'articles' ? 'articles' : 'page');
+    if (resolvedTemplate !== 'articles') continue;
+
+    const feedCachePath = path.join(cacheBase, `${pageId}.feed-cache.json`);
+    if (!fs.existsSync(feedCachePath)) continue;
+
+    let articleCount = 0;
+    try {
+      const raw = fs.readFileSync(feedCachePath, 'utf8');
+      const parsed = JSON.parse(raw) as { articles?: unknown[] } | null;
+      articleCount = Array.isArray(parsed?.articles) ? parsed.articles.length : 0;
+    } catch {
+      fail(`articles 页 ${pageId} 的 feed 缓存已损坏，无法解析`);
+    }
+
+    // 空缓存（sync 全站抓取失败仍会写盘 articles: []）属合法状态，跳过校验
+    if (articleCount === 0) continue;
+
+    const hasArticleItems = items.some(
+      (item) => item && item.type === 'article' && String(item.pageId || '').trim() === pageId
+    );
+    if (!hasArticleItems) {
+      fail(`articles 页 ${pageId} 存在非空 feed 缓存但搜索索引无对应 article 条目`);
+    }
+  }
+}
+
 function auditPublicArtifacts() {
   ensureBuildArtifacts();
 
@@ -256,6 +311,8 @@ function auditPublicArtifacts() {
     return !record.type || !record.pageId || !record.title;
   });
   if (invalidSearchItem) fail('搜索索引存在缺失基础字段的条目', JSON.stringify(invalidSearchItem));
+
+  auditExternalDataPresence(searchIndex);
 }
 
 function auditStyleLayers() {
