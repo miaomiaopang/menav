@@ -99,8 +99,9 @@ html.light-theme {
   --accent-rgb: 70, 99, 135;
 
   --nav-item-color: #666666;
-  --success-color: #4caf50;
-  --error-color: #f44336;
+  /* 浅色主题加深语义色：满足非文本指示 ≥3:1，错误色同时满足文本 ≥4.5:1（深色主题保持 Apple 系统色不变） */
+  --success-color: #3d8b40;
+  --error-color: #c62828;
   --white-color: #ffffff;
 
   --gradient-color: linear-gradient(135deg, #7694b9 0%, #a855f7 50%, #ff6b6b 100%);

@@ -273,12 +273,24 @@ function auditExternalDataPresence(searchIndex: SearchIndex) {
     try {
       const raw = fs.readFileSync(feedCachePath, 'utf8');
       const parsed = JSON.parse(raw) as { articles?: unknown[] } | null;
-      articleCount = Array.isArray(parsed?.articles) ? parsed.articles.length : 0;
+      // 有效条数口径与读取侧 src/lib/cache/articles.ts 的 normalizeArticleItem 一致：
+      // 仅统计 title 与 url 均非空的条目（搜索索引也只含这类归一化条目）。
+      // 否则 feed 缓存非空但其条目普遍缺 title/link 时，索引无对应条目、页面显示空列表，
+      // 若按原始条数判非空会错误地阻断 CI。
+      const rawArticles = Array.isArray(parsed?.articles) ? parsed.articles : [];
+      articleCount = rawArticles.filter((article): boolean => {
+        const record =
+          article && typeof article === 'object' ? (article as Record<string, unknown>) : null;
+        if (!record) return false;
+        const title = record.title ? String(record.title) : '';
+        const url = record.url ? String(record.url) : '';
+        return Boolean(title && url);
+      }).length;
     } catch {
       fail(`articles 页 ${pageId} 的 feed 缓存已损坏，无法解析`);
     }
 
-    // 空缓存（sync 全站抓取失败仍会写盘 articles: []）属合法状态，跳过校验
+    // 无有效条目（缓存为空，或条目均缺 title/link 而不进入渲染/索引）属合法状态，跳过校验
     if (articleCount === 0) continue;
 
     const hasArticleItems = items.some(

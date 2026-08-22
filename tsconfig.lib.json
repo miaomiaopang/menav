@@ -12,6 +12,8 @@
     "allowJs": true,
     "allowImportingTsExtensions": true,
     "moduleDetection": "force",
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo/lib.tsbuildinfo",
     "types": ["node"],
     "lib": ["es2022", "dom"]
   },

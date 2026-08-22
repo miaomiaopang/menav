@@ -6,3 +6,4 @@ export type { ResolvedConfig } from '../types/config.ts';
 export type { SiteModel, SiteModelInput } from '../types/model.ts';
 export type { SearchIndexPayload } from '../types/search.ts';
 export type { CardViewModel } from '../types/card.ts';
+export type { CategoryNode, CategoryItem } from './config/schema/page.ts';

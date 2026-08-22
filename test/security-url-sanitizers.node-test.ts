@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const { sanitizeLinkHref } = require('../src/lib/content/markdown.ts');
 const { menavSanitizeUrl } = require('../src/runtime/shared.ts');
 const { getSafeUrl } = require('../src/lib/view-data/view-utils.ts');
+const { isSafeUriAttribute } = require('../src/lib/security/html.ts');
+const { sanitizeUrl, sanitizeUrlOrHash } = require('../src/shared/sanitize-url.ts');
 
 const ALLOWED = ['http', 'https', 'mailto', 'tel'];
 
@@ -35,7 +37,10 @@ test('content/markdown sanitizeLinkHref：相对路径与合法 scheme 保留', 
   assert.equal(sanitizeLinkHref('../x', ALLOWED), '../x');
   assert.equal(sanitizeLinkHref('?q=1', ALLOWED), '?q=1');
   assert.equal(sanitizeLinkHref('#a', ALLOWED), '#a');
-  assert.equal(sanitizeLinkHref('https://example.com/a?b=1#c', ALLOWED), 'https://example.com/a?b=1#c');
+  assert.equal(
+    sanitizeLinkHref('https://example.com/a?b=1#c', ALLOWED),
+    'https://example.com/a?b=1#c'
+  );
   assert.equal(sanitizeLinkHref('mailto:a@b.com', ALLOWED), 'mailto:a@b.com');
   assert.equal(sanitizeLinkHref('tel:+123', ALLOWED), 'tel:+123');
 });
@@ -85,4 +90,37 @@ test('安全一致性：markdown/shared/view-utils 三处消毒器对同一输�
     assert.equal(menavSanitizeUrl(url, 't'), expected, `menavSanitizeUrl(${url})`);
     assert.equal(sanitizeLinkHref(url, ALLOWED), expected, `sanitizeLinkHref(${url})`);
   }
+});
+
+test('安全一致性：html isSafeUriAttribute 布尔谓词与字符串消毒器结论一致（含第四处）', () => {
+  // isSafeUriAttribute 是布尔谓词（html 属性白名单判定），与字符串消毒器的降级结论同源：
+  // 字符串『降级为 #』 ⇔ 布尔『不安全 false』；字符串『原样返回』 ⇔ 布尔『安全 true』。
+  const cases = [
+    'javascript:alert(1)',
+    'JaVaScRiPt:alert(1)',
+    '//evil.com',
+    '/\\evil.com',
+    '/\n/evil.com',
+    'https://example.com',
+    '/path',
+    './x',
+    '../x',
+    '?q=1',
+    'mailto:a@b.com',
+    'tel:+123',
+  ];
+  for (const url of cases) {
+    const expected = getSafeUrl(url, ALLOWED) !== '#';
+    assert.equal(isSafeUriAttribute(url), expected, `isSafeUriAttribute(${url})`);
+  }
+});
+
+test('shared/sanitize-url 单一入口：sanitizeUrl 返回 null 表示不安全，sanitizeUrlOrHash 降级为 #', () => {
+  // 核心函数本身也应被直测，作为四份消费方的唯一语义来源
+  assert.equal(sanitizeUrl('javascript:alert(1)'), null);
+  assert.equal(sanitizeUrl('//evil.com'), null);
+  assert.equal(sanitizeUrlOrHash('javascript:alert(1)'), '#');
+  assert.equal(sanitizeUrlOrHash('https://example.com'), 'https://example.com');
+  assert.equal(sanitizeUrlOrHash(''), '#');
+  assert.equal(sanitizeUrlOrHash(null), '#');
 });

@@ -1,3 +1,5 @@
+import { isSafeUriValue } from '../../shared/sanitize-url.ts';
+
 function escapeHtml(unsafe: unknown): string {
   if (unsafe === undefined || unsafe === null) {
     return '';
@@ -326,27 +328,7 @@ function htmlToText(input: unknown): string {
 }
 
 function isSafeUriAttribute(value: string): boolean {
-  // WHATWG URL 解析器会先剥离 ASCII tab/换行/分页符，先行剥离避免控制字符绕过协议相对拦截
-  const trimmed = value.trim().replace(/[\t\n\r\f]/g, '');
-  if (!trimmed) return false;
-  if (trimmed.startsWith('#')) return true;
-  // 协议相对 URL（//host 或 /\host）拒绝；WHATWG 在 authority 位置将反斜杠视为正斜杠
-  if (trimmed.startsWith('//') || trimmed.startsWith('/\\')) return false;
-  if (trimmed.startsWith('/')) return true;
-  // 与其余 URL 消毒函数一致：./ ../ ? 相对路径也放行
-  if (trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('?')) return true;
-
-  try {
-    const url = new URL(trimmed);
-    return (
-      url.protocol === 'http:' ||
-      url.protocol === 'https:' ||
-      url.protocol === 'mailto:' ||
-      url.protocol === 'tel:'
-    );
-  } catch {
-    return false;
-  }
+  return isSafeUriValue(value);
 }
 
 function isAllowedAttribute(
@@ -442,5 +424,5 @@ function sanitizeHtmlFragment(input: unknown, policy: HtmlSanitizePolicy): strin
   return output.join('');
 }
 
-export { escapeHtml, decodeHtmlEntities, htmlToText, sanitizeHtmlFragment };
+export { escapeHtml, decodeHtmlEntities, htmlToText, isSafeUriAttribute, sanitizeHtmlFragment };
 export type { HtmlSanitizePolicy };
