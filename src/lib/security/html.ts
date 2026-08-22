@@ -38,6 +38,28 @@ const NAMED_HTML_ENTITIES: Record<string, string> = {
   lt: '<',
   nbsp: ' ',
   quot: '"',
+  // 常见 HTML4 命名实体（书签/文本保真度：避免 © ® — … 等显示为字面文本）
+  bull: '•',
+  copy: '©',
+  deg: '°',
+  divide: '÷',
+  euro: '€',
+  hellip: '…',
+  ldquo: '“',
+  lsquo: '‘',
+  mdash: '—',
+  middot: '·',
+  ndash: '–',
+  para: '¶',
+  plusmn: '±',
+  pound: '£',
+  rdquo: '”',
+  reg: '®',
+  rsquo: '’',
+  sect: '§',
+  times: '×',
+  trade: '™',
+  yen: '¥',
 };
 
 const HTML_VOID_TAGS = new Set([
@@ -304,14 +326,24 @@ function htmlToText(input: unknown): string {
 }
 
 function isSafeUriAttribute(value: string): boolean {
-  const trimmed = value.trim();
+  // WHATWG URL 解析器会先剥离 ASCII tab/换行/分页符，先行剥离避免控制字符绕过协议相对拦截
+  const trimmed = value.trim().replace(/[\t\n\r\f]/g, '');
   if (!trimmed) return false;
   if (trimmed.startsWith('#')) return true;
-  if (trimmed.startsWith('/') && !trimmed.startsWith('//')) return true;
+  // 协议相对 URL（//host 或 /\host）拒绝；WHATWG 在 authority 位置将反斜杠视为正斜杠
+  if (trimmed.startsWith('//') || trimmed.startsWith('/\\')) return false;
+  if (trimmed.startsWith('/')) return true;
+  // 与其余 URL 消毒函数一致：./ ../ ? 相对路径也放行
+  if (trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('?')) return true;
 
   try {
     const url = new URL(trimmed);
-    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:';
+    return (
+      url.protocol === 'http:' ||
+      url.protocol === 'https:' ||
+      url.protocol === 'mailto:' ||
+      url.protocol === 'tel:'
+    );
   } catch {
     return false;
   }
@@ -350,8 +382,11 @@ function sanitizeHtmlFragment(input: unknown, policy: HtmlSanitizePolicy): strin
 
   while (index < source.length) {
     if (source[index] !== '<') {
-      output.push(escapeHtml(source[index]));
-      index += 1;
+      // 按文本片段先解码实体再统一转义：对"已消毒一次"的输入幂等，且真实实体不会被双编码显示
+      let end = index;
+      while (end < source.length && source[end] !== '<') end += 1;
+      output.push(escapeHtml(decodeHtmlEntities(source.slice(index, end))));
+      index = end;
       continue;
     }
 

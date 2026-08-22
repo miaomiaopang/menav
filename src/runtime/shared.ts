@@ -61,16 +61,20 @@ function menavIsRelativeUrl(url: unknown): boolean {
 
 function menavSanitizeUrl(rawUrl: unknown, contextLabel: string): string {
   if (rawUrl === undefined || rawUrl === null) return '#';
-  const url = String(rawUrl).trim();
+  // WHATWG URL 解析器会先剥离 ASCII tab/换行/分页符，此处先行剥离，避免控制字符绕过 // 与相对路径判定
+  const url = String(rawUrl)
+    .trim()
+    .replace(/[\t\n\r\f]/g, '');
   if (!url) return '#';
 
-  if (menavIsRelativeUrl(url)) return url;
-
-  // 明确拒绝协议相对 URL（//example.com），避免意外绕过策略
-  if (url.startsWith('//')) {
+  // 明确拒绝协议相对 URL（//example.com 或 /\example.com），先于相对路径判定，避免意外绕过策略；
+  // WHATWG 在 authority 位置将反斜杠视为正斜杠
+  if (url.startsWith('//') || url.startsWith('/\\')) {
     console.warn(`[MeNav][安全] 已拦截不安全 URL（协议相对形式）：${contextLabel || ''}`, url);
     return '#';
   }
+
+  if (menavIsRelativeUrl(url)) return url;
 
   try {
     const parsed = new URL(url);

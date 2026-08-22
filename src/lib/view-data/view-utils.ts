@@ -69,15 +69,20 @@ function isRelativeUrl(url: string): boolean {
 }
 
 function getSafeUrl(url: unknown, allowedSchemes: string[] = DEFAULT_ALLOWED_SCHEMES): string {
-  const raw = String(url || '').trim();
+  // WHATWG URL 解析器会先剥离 ASCII tab/换行/分页符，此处先行剥离，避免控制字符绕过相对路径与协议相对判定
+  const raw = String(url || '')
+    .trim()
+    .replace(/[\t\n\r\f]/g, '');
   if (!raw) return '#';
 
-  if (isRelativeUrl(raw)) return raw;
-
-  if (raw.startsWith('//')) {
+  // 协议相对 URL（//host/path 或 /\host/path）会跟随当前页面协议跳转外部域名，先于相对路径判定拦截；
+  // WHATWG URL 解析器在 authority 位置将反斜杠视为正斜杠，因此 /\ 前缀同样需拦截
+  if (raw.startsWith('//') || raw.startsWith('/\\')) {
     console.warn(`[WARN] 已拦截不安全 URL（协议相对形式）：${raw}`);
     return '#';
   }
+
+  if (isRelativeUrl(raw)) return raw;
 
   try {
     const parsed = new URL(raw);

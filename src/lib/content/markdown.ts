@@ -54,11 +54,15 @@ function isRelativeUrl(url: unknown): boolean {
 }
 
 function sanitizeLinkHref(href: unknown, allowedSchemes: string[]): string {
-  const raw = String(href || '').trim();
+  // WHATWG URL 解析器会先剥离 ASCII tab/换行/分页符，此处先行剥离，避免控制字符绕过 // 与相对路径判定
+  const raw = String(href || '')
+    .trim()
+    .replace(/[\t\n\r\f]/g, '');
   if (!raw) return '#';
-  if (isRelativeUrl(raw)) return raw;
+  // 协议相对 URL（//host 或 /\host）先于相对路径判定拦截；WHATWG 在 authority 位置将反斜杠视为正斜杠
+  if (raw.startsWith('//') || raw.startsWith('/\\')) return '#';
 
-  if (raw.startsWith('//')) return '#';
+  if (isRelativeUrl(raw)) return raw;
 
   try {
     const parsed = new URL(raw);
