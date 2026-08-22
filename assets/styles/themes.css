@@ -84,7 +84,7 @@ html.light-theme {
   --site-card-hover-bg: linear-gradient(145deg, #fafaf8, #eef0eb);
 
   --text-color: #333333;
-  --text-muted: #666666;
+  --text-muted: #5a5a5a;
   --text-bright: #000000;
 
   --border-color: rgba(0, 0, 0, 0.08);
@@ -94,9 +94,9 @@ html.light-theme {
   --scrollbar-color: rgba(0, 0, 0, 0.1);
   --scrollbar-hover-color: rgba(0, 0, 0, 0.2);
 
-  --accent-color: #7694b9;
-  --accent-hover: #6684a9;
-  --accent-rgb: 118, 148, 185;
+  --accent-color: #466387;
+  --accent-hover: #3a5574;
+  --accent-rgb: 70, 99, 135;
 
   --nav-item-color: #666666;
   --success-color: #4caf50;

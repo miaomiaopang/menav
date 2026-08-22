@@ -171,6 +171,14 @@ body.loaded .layout {
   opacity: 1;
 }
 
+/* 无 JS 兜底：脚本被禁用或加载失败时，页面仍可见、可滚动 */
+html.no-js .layout {
+  opacity: 1;
+}
+html.no-js body {
+  overflow: auto;
+}
+
 /* 移动端基础样式 */
 .mobile-buttons {
   display: none;
