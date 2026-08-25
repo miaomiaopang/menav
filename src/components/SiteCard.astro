@@ -1,0 +1,138 @@
+---
+import CardIcon from './CardIcon.astro';
+import { formatDate } from '../lib/view-data/view-utils.ts';
+import type { CardViewModel } from '../types/card';
+import type { RenderContext } from '../types/render';
+import { DEFAULT_RENDER_CONTEXT } from '../lib/view-data/render-context.ts';
+
+interface Props {
+  card: CardViewModel;
+  renderContext?: RenderContext;
+}
+
+const { card, renderContext = DEFAULT_RENDER_CONTEXT } = Astro.props;
+
+const cardType = card.type;
+const cardStyle = card.style || '';
+const name = card.title;
+const url = card.url;
+const icon = card.icon || (cardStyle === 'repo' ? 'fas fa-code' : 'fas fa-link');
+const description = card.description;
+const safeHref = card.safeUrl;
+const faviconUrl = card.faviconUrl || '';
+const forceIconMode = card.forceIconMode || '';
+const tooltip = `${name} - ${description || url}`;
+const shouldOpenExternal = Boolean(card.external);
+const publishedAt = card.publishedAt || '';
+const source = card.source || '';
+const language = card.language || '';
+const languageColor = card.languageColor || '';
+const stars = card.stars;
+const forks = card.forks;
+const issues = card.issues;
+const hasRepoStats = Boolean(
+  language || stars !== undefined || forks !== undefined || issues !== undefined
+);
+---
+
+{
+  url && (
+    <a
+      href={safeHref}
+      class:list={['site-card', cardStyle && `site-card-${cardStyle}`]}
+      target={shouldOpenExternal ? '_blank' : undefined}
+      rel={shouldOpenExternal ? 'noopener' : undefined}
+      data-type={cardType}
+      data-name={name}
+      data-url={url}
+      data-icon={icon}
+      data-favicon-url={faviconUrl || undefined}
+      data-force-icon-mode={forceIconMode || undefined}
+      data-description={description}
+      data-tooltip={tooltip}
+      data-published-at={publishedAt || undefined}
+      data-source={source || undefined}
+    >
+      {cardType === 'article' ? (
+        <>
+          <div class="article-card-header">
+            <CardIcon
+              renderContext={renderContext}
+              name={name}
+              url={url}
+              icon={icon}
+              faviconUrl={faviconUrl}
+              forceIconMode={forceIconMode}
+            />
+            <div class="article-card-title">
+              <h3>{name}</h3>
+            </div>
+          </div>
+          <div class="article-card-body">
+            {(publishedAt || source) && (
+              <div class="site-card-meta">
+                {publishedAt && (
+                  <span class="site-card-meta-date">{formatDate(publishedAt, 'YYYY-MM-DD')}</span>
+                )}
+                {publishedAt && source && <span class="site-card-meta-sep">·</span>}
+                {source && <span class="site-card-meta-source">{source}</span>}
+              </div>
+            )}
+            <p>{description}</p>
+          </div>
+        </>
+      ) : cardStyle === 'repo' ? (
+        <>
+          <div class="repo-header">
+            <i class:list={[icon, 'repo-icon']} aria-hidden="true" />
+            <div class="repo-title">{name}</div>
+          </div>
+          <div class="repo-desc">{description}</div>
+          {hasRepoStats && (
+            <div class="repo-stats">
+              {language && (
+                <div class="stat-item">
+                  <span
+                    class="lang-dot"
+                    style={`background-color: ${languageColor || '#909296'};`}
+                  />
+                  {language}
+                </div>
+              )}
+              {stars !== undefined && (
+                <div class="stat-item">
+                  <i class="far fa-star" aria-hidden="true" /> {stars}
+                </div>
+              )}
+              {forks !== undefined && (
+                <div class="stat-item">
+                  <i class="fas fa-code-branch" aria-hidden="true" /> {forks}
+                </div>
+              )}
+              {issues !== undefined && (
+                <div class="stat-item">
+                  <i class="fas fa-exclamation-circle" aria-hidden="true" /> {issues}
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      ) : (
+        <>
+          <CardIcon
+            renderContext={renderContext}
+            name={name}
+            url={url}
+            icon={icon}
+            faviconUrl={faviconUrl}
+            forceIconMode={forceIconMode}
+          />
+          <div class="site-card-content">
+            <h3>{name}</h3>
+            <p>{description}</p>
+          </div>
+        </>
+      )}
+    </a>
+  )
+}

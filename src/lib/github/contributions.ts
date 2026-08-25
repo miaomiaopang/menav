@@ -1,0 +1,106 @@
+import { sanitizeHtmlFragment, type HtmlSanitizePolicy } from '../security/html.ts';
+
+const GITHUB_CONTRIBUTIONS_HTML_POLICY: HtmlSanitizePolicy = {
+  allowedTags: new Set([
+    'a',
+    'caption',
+    'div',
+    'g',
+    'h2',
+    'p',
+    'rect',
+    'span',
+    'svg',
+    'table',
+    'tbody',
+    'td',
+    'text',
+    'th',
+    'thead',
+    'tool-tip',
+    'tr',
+  ]),
+  globalAttributes: new Set([
+    'class',
+    'height',
+    'hidden',
+    'id',
+    'role',
+    'tabindex',
+    'title',
+    'width',
+  ]),
+  tagAttributes: {
+    a: new Set(['href']),
+    g: new Set(['transform']),
+    rect: new Set(['height', 'rx', 'ry', 'width', 'x', 'y']),
+    svg: new Set(['height', 'preserveaspectratio', 'viewbox', 'width']),
+    table: new Set(['summary']),
+    td: new Set(['colspan', 'headers', 'rowspan']),
+    text: new Set(['dx', 'dy', 'x', 'y']),
+    th: new Set(['colspan', 'headers', 'rowspan', 'scope']),
+  },
+  uriAttributes: new Set(['href']),
+};
+
+function extractYearlyContributionsInnerHtml(html: string): string | null {
+  const source = String(html || '');
+  if (!source) return null;
+
+  const marker = 'js-yearly-contributions';
+  const markerIndex = source.indexOf(marker);
+  if (markerIndex < 0) return null;
+
+  const openTagStart = source.lastIndexOf('<div', markerIndex);
+  if (openTagStart < 0) return null;
+
+  let depth = 0;
+  let cursor = openTagStart;
+  let endIndex = -1;
+
+  while (cursor < source.length) {
+    const nextOpen = source.indexOf('<div', cursor);
+    const nextClose = source.indexOf('</div', cursor);
+
+    if (nextOpen === -1 && nextClose === -1) break;
+
+    const isOpen = nextOpen !== -1 && (nextClose === -1 || nextOpen < nextClose);
+    const tagIndex = isOpen ? nextOpen : nextClose;
+    const tagEnd = source.indexOf('>', tagIndex);
+    if (tagEnd === -1) break;
+
+    if (isOpen) {
+      depth += 1;
+    } else {
+      depth -= 1;
+      if (depth === 0) {
+        endIndex = tagEnd + 1;
+        break;
+      }
+    }
+
+    cursor = tagEnd + 1;
+  }
+
+  if (endIndex === -1) return null;
+
+  const outerHtml = source.slice(openTagStart, endIndex);
+  if (!outerHtml.includes(marker)) return null;
+
+  const openEnd = outerHtml.indexOf('>');
+  const closeStart = outerHtml.lastIndexOf('</div');
+  if (openEnd === -1 || closeStart === -1 || closeStart <= openEnd) return null;
+
+  const inner = sanitizeHtmlFragment(
+    outerHtml.slice(openEnd + 1, closeStart),
+    GITHUB_CONTRIBUTIONS_HTML_POLICY
+  );
+
+  return inner.trim() ? inner : null;
+}
+
+function sanitizeContributionsHtml(html: unknown): string {
+  return sanitizeHtmlFragment(String(html || ''), GITHUB_CONTRIBUTIONS_HTML_POLICY);
+}
+
+export { extractYearlyContributionsInnerHtml, sanitizeContributionsHtml };
